@@ -42,8 +42,11 @@ This project consists of two main parts:
 #### UI/UX Features
 - 🔔 **Toast Notifications** - Elegant, non-blocking notifications for all user actions
 - 📄 **Pagination** - Efficient data handling with smart pagination (10 items per page)
-- 🔍 **Search Functionality** - Real-time search across customers, articles, and suppliers
+- 🔍 **Debounced Search** - Real-time search with 500ms debounce across customers, articles, and suppliers
 - 🔽 **Sortable Columns** - Click any column header to sort data (asc → desc → unsorted)
+- 📊 **Summary Statistics** - Real-time metrics and KPIs displayed in beautiful stat cards
+- ⌨️ **Keyboard Shortcuts** - Power user shortcuts (R: refresh, N: new, /: search, Esc: close)
+- 🖨️ **Print Invoices** - Professional print-friendly invoice layouts with one click
 - ⚡ **Loading States** - Animated skeleton screens for better perceived performance
 - 📋 **Invoice Modal** - Detailed invoice view with line items, VAT breakdown, and totals
 - ✅ **Form Validation** - Client-side validation with helpful error messages
@@ -114,20 +117,23 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 The dashboard provides tabs for managing different resources:
 
 #### Customers Tab
+- **Summary Stats** - Total customers, current page count, and search results
 - View all customers with pagination (10 per page)
-- Search customers by name in real-time
+- **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by name, email, phone, city, or country
 - **Edit existing customers** - Click Edit to modify customer details
 - Create new customers with validation
 - Delete existing customers with confirmation
 - **Export to CSV** - Download customer data to spreadsheet
+- **Keyboard Shortcuts** - R (refresh), N (new), / (search), Esc (close form)
 - Country code validation (2-letter codes)
 - Email and phone validation
 - Refresh data manually with one click
 
 #### Articles Tab
+- **Summary Stats** - Total articles, current page count, and average unit price
 - Browse all products/services with pagination
-- Search articles by name
+- **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by article number, name, description, unit price, or unit
 - **Edit existing articles** - Click Edit to modify article details
 - Create new articles with descriptions, prices, and units
@@ -137,9 +143,11 @@ The dashboard provides tabs for managing different resources:
 - Auto-populate invoice forms from article data
 
 #### Invoices Tab
+- **Summary Stats** - Total invoices, paid count, unpaid count, and total revenue
 - View all customer invoices with pagination
 - **Filter by status** - Show All, Paid, or Unpaid invoices with live counts
 - **Sort by any column** - Click column headers to sort by invoice number, customer, dates, total amount, or status
+- **Print invoices** - Professional print layout for any invoice
 - Create invoices by selecting customers and articles
 - Auto-fill line item details from selected article
 - View detailed invoice information in modal
@@ -152,8 +160,9 @@ The dashboard provides tabs for managing different resources:
 - Date management (invoice date and due date)
 
 #### Suppliers Tab
+- **Summary Stats** - Total suppliers, current page count, and search results
 - View all suppliers with pagination
-- Search suppliers by name
+- **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by name, email, phone, city, or country code
 - **Edit existing suppliers** - Click Edit to modify supplier details
 - Create new suppliers with contact information
@@ -346,6 +355,89 @@ Features:
 - Type-safe sorting for strings, numbers, and dates
 - Handles null/undefined values properly
 - Works with any data structure
+
+### Debounced Search (`useDebounce` hook)
+Reduces API calls by debouncing user input:
+
+```typescript
+import { useDebounce } from '@/lib/useDebounce';
+
+const [searchQuery, setSearchQuery] = useState('');
+const debouncedSearchQuery = useDebounce(searchQuery, 500);
+const isSearching = searchQuery !== debouncedSearchQuery;
+
+// Use debouncedSearchQuery for API calls
+useEffect(() => {
+  loadData(debouncedSearchQuery);
+}, [debouncedSearchQuery]);
+```
+
+Features:
+- Configurable delay (default: 500ms)
+- Reduces unnecessary API calls while typing
+- Visual feedback for search in progress
+- Type-safe with TypeScript generics
+
+### Summary Statistics (`StatCard` component)
+Beautiful statistic cards for displaying KPIs:
+
+```typescript
+import StatCard from './StatCard';
+
+<StatCard
+  title="Total Customers"
+  value={totalCount}
+  subtitle="All registered"
+  color="blue"
+  icon={<svg>...</svg>}
+/>
+```
+
+Features:
+- Multiple color themes (blue, green, yellow, purple, red, indigo)
+- Icon support with colored backgrounds
+- Optional subtitle for additional context
+- Responsive grid layout
+
+### Keyboard Shortcuts (`useKeyboardShortcuts` hook)
+Power user shortcuts for common actions:
+
+```typescript
+import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
+
+useKeyboardShortcuts([
+  { key: 'r', handler: handleRefresh, description: 'Refresh data' },
+  { key: 'n', handler: handleNew, description: 'New item' },
+  { key: '/', handler: () => searchInput.current?.focus(), description: 'Focus search' },
+  { key: 'Escape', handler: handleClose, description: 'Close form' }
+]);
+```
+
+Features:
+- Modifier key support (Ctrl, Shift, Alt)
+- Prevents conflicts when typing in inputs
+- Easy to add custom shortcuts
+- Includes help component for displaying available shortcuts
+
+### Print Invoice (`PrintInvoice` component)
+Professional print-friendly invoice layout:
+
+```typescript
+import PrintInvoice from './PrintInvoice';
+
+{printInvoice && (
+  <PrintInvoice
+    invoice={printInvoice}
+    onClose={() => setPrintInvoice(null)}
+  />
+)}
+```
+
+Features:
+- Automatic print dialog trigger
+- Clean, professional layout
+- Print-specific CSS styling
+- Status indicators (Paid/Unpaid)
 
 ### Loading Skeleton
 Animated skeleton screens during data loading:

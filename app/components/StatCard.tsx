@@ -1,0 +1,37 @@
+'use client';
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  subtitle?: string;
+  color?: 'blue' | 'green' | 'yellow' | 'purple' | 'red' | 'indigo';
+}
+
+const colorClasses = {
+  blue: 'bg-blue-100 text-blue-600',
+  green: 'bg-green-100 text-green-600',
+  yellow: 'bg-yellow-100 text-yellow-600',
+  purple: 'bg-purple-100 text-purple-600',
+  red: 'bg-red-100 text-red-600',
+  indigo: 'bg-indigo-100 text-indigo-600',
+};
+
+export default function StatCard({ title, value, icon, subtitle, color = 'blue' }: StatCardProps) {
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
+          {subtitle && (
+            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+          )}
+        </div>
+        <div className={`p-3 rounded-full ${colorClasses[color]}`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}

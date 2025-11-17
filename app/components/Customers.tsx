@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getCustomers, createCustomer, updateCustomer, deleteCustomer, searchCustomers } from '@/app/actions/customers';
 import type { Customer } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
@@ -8,6 +8,9 @@ import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
+import { useDebounce } from '@/lib/useDebounce';
+import StatCard from './StatCard';
+import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -23,6 +26,46 @@ export default function Customers() {
 
   const toast = useToast();
   const { sortedData: sortedCustomers, sortKey, sortDirection, handleSort } = useSort(customers, 'name');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce search query to reduce API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearchQuery;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'r',
+      handler: () => {
+        handleRefresh();
+      },
+      description: 'Refresh customers'
+    },
+    {
+      key: 'n',
+      handler: () => {
+        setShowForm(true);
+        setEditingCustomer(null);
+      },
+      description: 'New customer'
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (showForm) {
+          handleCancelEdit();
+        }
+      },
+      description: 'Close form'
+    },
+    {
+      key: '/',
+      handler: () => {
+        searchInputRef.current?.focus();
+      },
+      description: 'Focus search'
+    }
+  ]);
 
   const loadCustomers = async (page = 1, query = '') => {
     setLoading(true);
@@ -42,13 +85,12 @@ export default function Customers() {
   };
 
   useEffect(() => {
-    loadCustomers(currentPage, searchQuery);
-  }, [currentPage]);
+    loadCustomers(currentPage, debouncedSearchQuery);
+  }, [currentPage, debouncedSearchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1);
-    loadCustomers(1, searchQuery);
+    // Search will be triggered automatically by debounced value
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -144,6 +186,42 @@ export default function Customers() {
     <div className="space-y-4">
       <toast.ToastContainer />
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Customers"
+          value={totalCount}
+          color="blue"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Current Page"
+          value={customers.length}
+          subtitle={`Page ${currentPage} of ${totalPages}`}
+          color="green"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Search Results"
+          value={debouncedSearchQuery ? totalCount : '-'}
+          subtitle={debouncedSearchQuery || 'No active search'}
+          color="purple"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          }
+        />
+      </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">Customers</h2>
@@ -183,13 +261,24 @@ export default function Customers() {
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search customers by name..."
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+        <div className="flex-1 relative">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search customers by name..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          )}
+        </div>
         <button
           type="submit"
           className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"

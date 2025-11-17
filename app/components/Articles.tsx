@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getArticles, createArticle, updateArticle, deleteArticle, searchArticles } from '@/app/actions/articles';
 import type { Article } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
@@ -8,6 +8,8 @@ import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
+import { useDebounce } from '@/lib/useDebounce';
+import StatCard from './StatCard';
 
 export default function Articles() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -23,6 +25,10 @@ export default function Articles() {
 
   const toast = useToast();
   const { sortedData: sortedArticles, sortKey, sortDirection, handleSort } = useSort(articles, 'name');
+
+  // Debounce search query to reduce API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearchQuery;
 
   const loadArticles = async (page = 1, query = '') => {
     setLoading(true);
@@ -42,13 +48,12 @@ export default function Articles() {
   };
 
   useEffect(() => {
-    loadArticles(currentPage, searchQuery);
-  }, [currentPage]);
+    loadArticles(currentPage, debouncedSearchQuery);
+  }, [currentPage, debouncedSearchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1);
-    loadArticles(1, searchQuery);
+    // Search will be triggered automatically by debounced value
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -139,6 +144,13 @@ export default function Articles() {
     toast.success('Articles exported to CSV');
   };
 
+  // Calculate average unit price
+  const averagePrice = useMemo(() => {
+    if (articles.length === 0) return 0;
+    const total = articles.reduce((sum, article) => sum + (article.unitPrice || 0), 0);
+    return total / articles.length;
+  }, [articles]);
+
   if (loading && articles.length === 0) {
     return <LoadingSkeleton />;
   }
@@ -146,6 +158,42 @@ export default function Articles() {
   return (
     <div className="space-y-4">
       <toast.ToastContainer />
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Articles"
+          value={totalCount}
+          color="indigo"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Current Page"
+          value={articles.length}
+          subtitle={`Page ${currentPage} of ${totalPages}`}
+          color="green"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Avg Unit Price"
+          value={averagePrice.toFixed(2)}
+          subtitle="Across all articles"
+          color="yellow"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
@@ -186,13 +234,23 @@ export default function Articles() {
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search articles by name..."
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search articles by name..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          )}
+        </div>
         <button
           type="submit"
           className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier, searchSuppliers } from '@/app/actions/suppliers';
 import type { Supplier } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
@@ -8,6 +8,8 @@ import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
+import { useDebounce } from '@/lib/useDebounce';
+import StatCard from './StatCard';
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -23,6 +25,10 @@ export default function Suppliers() {
 
   const toast = useToast();
   const { sortedData: sortedSuppliers, sortKey, sortDirection, handleSort } = useSort(suppliers, 'name');
+
+  // Debounce search query to reduce API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearchQuery;
 
   const loadSuppliers = async (page = 1, query = '') => {
     setLoading(true);
@@ -42,13 +48,12 @@ export default function Suppliers() {
   };
 
   useEffect(() => {
-    loadSuppliers(currentPage, searchQuery);
-  }, [currentPage]);
+    loadSuppliers(currentPage, debouncedSearchQuery);
+  }, [currentPage, debouncedSearchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1);
-    loadSuppliers(1, searchQuery);
+    // Search will be triggered automatically by debounced value
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -149,6 +154,42 @@ export default function Suppliers() {
     <div className="space-y-4">
       <toast.ToastContainer />
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Suppliers"
+          value={totalCount}
+          color="purple"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Current Page"
+          value={suppliers.length}
+          subtitle={`Page ${currentPage} of ${totalPages}`}
+          color="green"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Search Results"
+          value={debouncedSearchQuery ? totalCount : '-'}
+          subtitle={debouncedSearchQuery || 'No active search'}
+          color="indigo"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          }
+        />
+      </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">Suppliers</h2>
@@ -188,13 +229,23 @@ export default function Suppliers() {
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search suppliers by name..."
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search suppliers by name..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          )}
+        </div>
         <button
           type="submit"
           className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"

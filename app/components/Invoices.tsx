@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getInvoices, createInvoice, sendInvoiceEmail } from '@/app/actions/invoices';
 import { getCustomers } from '@/app/actions/customers';
 import { getArticles } from '@/app/actions/articles';
@@ -9,8 +9,10 @@ import { useToast } from './useToast';
 import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import InvoiceModal from './InvoiceModal';
+import PrintInvoice from './PrintInvoice';
 import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
+import StatCard from './StatCard';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -20,6 +22,7 @@ export default function Invoices() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<CustomerInvoice | null>(null);
+  const [printInvoice, setPrintInvoice] = useState<CustomerInvoice | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -176,6 +179,13 @@ export default function Invoices() {
     setSelectedInvoice(invoice);
   };
 
+  // Calculate invoice statistics
+  const paidCount = useMemo(() => invoices.filter(inv => inv.isPaid).length, [invoices]);
+  const unpaidCount = useMemo(() => invoices.filter(inv => !inv.isPaid).length, [invoices]);
+  const totalRevenue = useMemo(() => {
+    return invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  }, [invoices]);
+
   if (loading && invoices.length === 0) {
     return <LoadingSkeleton />;
   }
@@ -190,6 +200,60 @@ export default function Invoices() {
           onClose={() => setSelectedInvoice(null)}
         />
       )}
+
+      {printInvoice && (
+        <PrintInvoice
+          invoice={printInvoice}
+          onClose={() => setPrintInvoice(null)}
+        />
+      )}
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Invoices"
+          value={totalCount}
+          color="blue"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Paid Invoices"
+          value={paidCount}
+          subtitle={`${((paidCount/invoices.length)*100 || 0).toFixed(0)}% paid`}
+          color="green"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Unpaid Invoices"
+          value={unpaidCount}
+          subtitle={`${((unpaidCount/invoices.length)*100 || 0).toFixed(0)}% unpaid`}
+          color="yellow"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+        <StatCard
+          title="Total Revenue"
+          value={totalRevenue.toFixed(2)}
+          subtitle="All invoices"
+          color="indigo"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
@@ -458,6 +522,13 @@ export default function Invoices() {
                     className="text-indigo-600 hover:text-indigo-900 mr-3"
                   >
                     View
+                  </button>
+                  <button
+                    onClick={() => setPrintInvoice(invoice)}
+                    className="text-green-600 hover:text-green-900 mr-3"
+                    title="Print Invoice"
+                  >
+                    Print
                   </button>
                   <button
                     onClick={() => invoice.id && handleSendEmail(invoice.id, invoice.customerName || 'customer')}
