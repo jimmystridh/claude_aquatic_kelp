@@ -13,6 +13,9 @@ import StatCard from './StatCard';
 import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp';
 import { useBulkSelection } from '@/lib/useBulkSelection';
+import { useRecentItems } from '@/lib/useRecentItems';
+import RecentItems from './RecentItems';
+import AutoRefreshControl from './AutoRefreshControl';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -29,6 +32,7 @@ export default function Customers() {
   const toast = useToast();
   const { sortedData: sortedCustomers, sortKey, sortDirection, handleSort } = useSort(customers, 'name');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { addRecentItem } = useRecentItems();
 
   // Bulk selection
   const {
@@ -141,6 +145,17 @@ export default function Customers() {
       setShowForm(false);
       setEditingCustomer(null);
       toast.success(editingCustomer ? 'Customer updated successfully!' : 'Customer created successfully!');
+
+      // Track recent item
+      if (result.data) {
+        addRecentItem({
+          id: result.data.id || editingCustomer?.id || '',
+          name: data.name,
+          type: 'customer',
+          action: editingCustomer ? 'edited' : 'created',
+        });
+      }
+
       e.currentTarget.reset();
       loadCustomers(currentPage, searchQuery);
     } else {
@@ -152,6 +167,16 @@ export default function Customers() {
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
     setShowForm(true);
+
+    // Track recent view
+    if (customer.id) {
+      addRecentItem({
+        id: customer.id,
+        name: customer.name,
+        type: 'customer',
+        action: 'viewed',
+      });
+    }
   };
 
   const handleCancelEdit = () => {
@@ -289,6 +314,9 @@ export default function Customers() {
         />
       </div>
 
+      {/* Recent Items */}
+      <RecentItems type="customer" />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">Customers</h2>
@@ -320,6 +348,7 @@ export default function Customers() {
               { key: 'Esc', description: 'Close form' }
             ]}
           />
+          <AutoRefreshControl onRefresh={handleRefresh} />
         </div>
         <button
           onClick={() => {

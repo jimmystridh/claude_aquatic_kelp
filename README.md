@@ -57,6 +57,9 @@ This project consists of two main parts:
 - 📊 **CSV Export** - Export all data (customers, articles, suppliers, invoices) to CSV files
 - 🔍 **Invoice Filtering** - Filter invoices by status (All, Paid, Unpaid) with live counts
 - ☑️ **Bulk Selection** - Select multiple items with checkboxes for batch operations (delete/export)
+- ⌨️ **Command Palette** - Quick navigation and actions with Cmd+K / Ctrl+K keyboard shortcut
+- 🕐 **Recent Items** - Track and access recently viewed, edited, and created items
+- 🔄 **Auto-Refresh** - Configurable automatic data refresh intervals (10s, 30s, 1m, 2m, 5m)
 
 ## Getting Started
 
@@ -119,6 +122,7 @@ The dashboard provides tabs for managing different resources:
 
 #### Customers Tab
 - **Summary Stats** - Total customers, current page count, and search results
+- **Recent Items** - Quick access to recently viewed, edited, and created customers
 - View all customers with pagination (10 per page)
 - **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by name, email, phone, city, or country
@@ -130,6 +134,7 @@ The dashboard provides tabs for managing different resources:
 - Create new customers with validation
 - Delete existing customers with confirmation
 - **Export to CSV** - Download customer data to spreadsheet
+- **Auto-refresh** - Configurable automatic refresh (10s, 30s, 1m, 2m, 5m intervals)
 - **Keyboard Shortcuts** - R (refresh), N (new), / (search), Esc (close form)
 - Country code validation (2-letter codes)
 - Email and phone validation
@@ -279,7 +284,10 @@ claude_aquatic_kelp/
 │   │   ├── useToast.tsx          # Toast hook
 │   │   ├── Pagination.tsx        # Pagination component
 │   │   ├── LoadingSkeleton.tsx   # Loading state component
-│   │   └── InvoiceModal.tsx      # Invoice detail modal
+│   │   ├── InvoiceModal.tsx      # Invoice detail modal
+│   │   ├── CommandPalette.tsx    # Command palette (Cmd+K)
+│   │   ├── RecentItems.tsx       # Recent items display
+│   │   └── AutoRefreshControl.tsx # Auto-refresh control
 │   ├── layout.tsx
 │   └── page.tsx                   # Main dashboard
 ├── lib/
@@ -288,6 +296,8 @@ claude_aquatic_kelp/
 │   ├── useBulkSelection.tsx       # Bulk selection hook
 │   ├── useDebounce.tsx            # Debounce hook
 │   ├── useKeyboardShortcuts.tsx   # Keyboard shortcuts hook
+│   ├── useRecentItems.tsx         # Recent items tracking hook
+│   ├── useAutoRefresh.tsx         # Auto-refresh hook
 │   └── csvExport.ts               # CSV export utility
 └── package.json
 ```
@@ -437,6 +447,89 @@ Features:
 - Prevents conflicts when typing in inputs
 - Easy to add custom shortcuts
 - Includes help component for displaying available shortcuts
+
+### Command Palette (`CommandPalette` component)
+Quick navigation and action launcher with fuzzy search:
+
+```typescript
+import CommandPalette from './CommandPalette';
+
+const commands = [
+  {
+    id: 'nav-customers',
+    label: 'Go to Customers',
+    description: 'View and manage customers',
+    icon: <svg>...</svg>,
+    action: () => navigate('customers'),
+    keywords: ['customers', 'clients', 'contacts'],
+  },
+  // ...more commands
+];
+
+<CommandPalette commands={commands} />
+```
+
+Features:
+- Opens with **Cmd+K** (Mac) or **Ctrl+K** (Windows/Linux)
+- Fuzzy search across command labels, descriptions, and keywords
+- Keyboard navigation with arrow keys
+- Execute commands with Enter
+- Close with Escape
+- Visual keyboard shortcut hints in footer
+- Auto-focus on input when opened
+
+### Recent Items Tracking (`useRecentItems` hook + `RecentItems` component)
+Tracks and displays recently viewed, edited, and created items:
+
+```typescript
+import { useRecentItems } from '@/lib/useRecentItems';
+import RecentItems from './RecentItems';
+
+const { addRecentItem } = useRecentItems();
+
+// Track an item
+addRecentItem({
+  id: customer.id,
+  name: customer.name,
+  type: 'customer',
+  action: 'viewed', // or 'edited' or 'created'
+});
+
+// Display recent items
+<RecentItems type="customer" />
+```
+
+Features:
+- Persists to localStorage (survives page refresh)
+- Auto-expires items older than 30 days
+- Tracks up to 20 recent items per type
+- Shows time ago (e.g., "2m ago", "1h ago", "3d ago")
+- Color-coded action badges (viewed, edited, created)
+- Clear all or clear by type
+- Shows only 5 most recent, with "+N more" indicator
+
+### Auto-Refresh (`useAutoRefresh` hook + `AutoRefreshControl` component)
+Configurable automatic data refresh with visual countdown:
+
+```typescript
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
+import AutoRefreshControl from './AutoRefreshControl';
+
+// Add control to your component
+<AutoRefreshControl onRefresh={handleRefresh} />
+
+// Or use the hook directly
+const { enabled, interval, timeFormatted, toggle, setInterval } = useAutoRefresh(handleRefresh);
+```
+
+Features:
+- Configurable intervals: 10s, 30s, 1m, 2m, 5m
+- Visual countdown timer
+- Toggle on/off with animated switch
+- Settings dropdown with interval options
+- Persists preferences to localStorage
+- Auto-pauses when settings are open
+- Green indicator when active
 
 ### Bulk Selection (`useBulkSelection` hook)
 Multi-select functionality for batch operations:
