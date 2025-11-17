@@ -7,6 +7,7 @@ import { useToast } from './useToast';
 import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import { exportToCSV } from '@/lib/csvExport';
+import { useSort, SortIcon } from '@/lib/useSort';
 
 export default function Articles() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -21,6 +22,7 @@ export default function Articles() {
   const pageSize = 10;
 
   const toast = useToast();
+  const { sortedData: sortedArticles, sortKey, sortDirection, handleSort } = useSort(articles, 'name');
 
   const loadArticles = async (page = 1, query = '') => {
     setLoading(true);
@@ -299,16 +301,56 @@ export default function Articles() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Article #</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('articleNumber')}
+              >
+                <div className="flex items-center gap-1">
+                  Article #
+                  <SortIcon sortKey="articleNumber" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1">
+                  Name
+                  <SortIcon sortKey="name" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('description')}
+              >
+                <div className="flex items-center gap-1">
+                  Description
+                  <SortIcon sortKey="description" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('unitPrice')}
+              >
+                <div className="flex items-center gap-1">
+                  Unit Price
+                  <SortIcon sortKey="unitPrice" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('unit')}
+              >
+                <div className="flex items-center gap-1">
+                  Unit
+                  <SortIcon sortKey="unit" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {articles.map((article) => (
+            {sortedArticles.map((article) => (
               <tr key={article.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{article.articleNumber || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{article.name}</td>

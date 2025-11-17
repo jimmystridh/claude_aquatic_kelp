@@ -10,6 +10,7 @@ import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import InvoiceModal from './InvoiceModal';
 import { exportToCSV } from '@/lib/csvExport';
+import { useSort, SortIcon } from '@/lib/useSort';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -34,6 +35,9 @@ export default function Invoices() {
     if (statusFilter === 'unpaid') return invoice.isPaid !== true;
     return true;
   });
+
+  // Apply sorting to filtered invoices
+  const { sortedData: sortedInvoices, sortKey, sortDirection, handleSort } = useSort(filteredInvoices, 'customerName');
 
   const loadData = async (page = 1) => {
     setLoading(true);
@@ -154,7 +158,7 @@ export default function Invoices() {
 
   const handleExport = () => {
     exportToCSV(
-      filteredInvoices,
+      sortedInvoices,
       'invoices',
       [
         { key: 'invoiceNumber', header: 'Invoice #' },
@@ -202,7 +206,7 @@ export default function Invoices() {
           </button>
           <button
             onClick={handleExport}
-            disabled={filteredInvoices.length === 0}
+            disabled={sortedInvoices.length === 0}
             className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
             title="Export to CSV"
           >
@@ -368,17 +372,65 @@ export default function Invoices() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('invoiceNumber')}
+              >
+                <div className="flex items-center gap-1">
+                  Invoice #
+                  <SortIcon sortKey="invoiceNumber" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('customerName')}
+              >
+                <div className="flex items-center gap-1">
+                  Customer
+                  <SortIcon sortKey="customerName" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('invoiceDate')}
+              >
+                <div className="flex items-center gap-1">
+                  Date
+                  <SortIcon sortKey="invoiceDate" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('dueDate')}
+              >
+                <div className="flex items-center gap-1">
+                  Due Date
+                  <SortIcon sortKey="dueDate" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('totalAmount')}
+              >
+                <div className="flex items-center gap-1">
+                  Total
+                  <SortIcon sortKey="totalAmount" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('isPaid')}
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  <SortIcon sortKey="isPaid" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredInvoices.map((invoice) => (
+            {sortedInvoices.map((invoice) => (
               <tr key={invoice.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   #{invoice.invoiceNumber || '-'}
@@ -418,7 +470,7 @@ export default function Invoices() {
             ))}
           </tbody>
         </table>
-        {filteredInvoices.length === 0 && !loading && (
+        {sortedInvoices.length === 0 && !loading && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

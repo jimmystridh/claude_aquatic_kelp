@@ -43,6 +43,7 @@ This project consists of two main parts:
 - 🔔 **Toast Notifications** - Elegant, non-blocking notifications for all user actions
 - 📄 **Pagination** - Efficient data handling with smart pagination (10 items per page)
 - 🔍 **Search Functionality** - Real-time search across customers, articles, and suppliers
+- 🔽 **Sortable Columns** - Click any column header to sort data (asc → desc → unsorted)
 - ⚡ **Loading States** - Animated skeleton screens for better perceived performance
 - 📋 **Invoice Modal** - Detailed invoice view with line items, VAT breakdown, and totals
 - ✅ **Form Validation** - Client-side validation with helpful error messages
@@ -115,6 +116,7 @@ The dashboard provides tabs for managing different resources:
 #### Customers Tab
 - View all customers with pagination (10 per page)
 - Search customers by name in real-time
+- **Sort by any column** - Click column headers to sort by name, email, phone, city, or country
 - **Edit existing customers** - Click Edit to modify customer details
 - Create new customers with validation
 - Delete existing customers with confirmation
@@ -126,6 +128,7 @@ The dashboard provides tabs for managing different resources:
 #### Articles Tab
 - Browse all products/services with pagination
 - Search articles by name
+- **Sort by any column** - Click column headers to sort by article number, name, description, unit price, or unit
 - **Edit existing articles** - Click Edit to modify article details
 - Create new articles with descriptions, prices, and units
 - Delete articles with confirmation
@@ -136,6 +139,7 @@ The dashboard provides tabs for managing different resources:
 #### Invoices Tab
 - View all customer invoices with pagination
 - **Filter by status** - Show All, Paid, or Unpaid invoices with live counts
+- **Sort by any column** - Click column headers to sort by invoice number, customer, dates, total amount, or status
 - Create invoices by selecting customers and articles
 - Auto-fill line item details from selected article
 - View detailed invoice information in modal
@@ -143,13 +147,14 @@ The dashboard provides tabs for managing different resources:
   - VAT breakdown
   - Total amounts
 - Send invoices via email
-- **Export to CSV** - Download invoice data to spreadsheet (respects current filter)
+- **Export to CSV** - Download invoice data to spreadsheet (respects current filter and sort order)
 - Status indicators (Paid/Unpaid)
 - Date management (invoice date and due date)
 
 #### Suppliers Tab
 - View all suppliers with pagination
 - Search suppliers by name
+- **Sort by any column** - Click column headers to sort by name, email, phone, city, or country code
 - **Edit existing suppliers** - Click Edit to modify supplier details
 - Create new suppliers with contact information
 - Delete suppliers with confirmation
@@ -253,7 +258,9 @@ claude_aquatic_kelp/
 │   ├── layout.tsx
 │   └── page.tsx                   # Main dashboard
 ├── lib/
-│   └── visma.ts                   # Client initialization
+│   ├── visma.ts                   # Client initialization
+│   ├── useSort.tsx                # Table sorting hook
+│   └── csvExport.ts               # CSV export utility
 └── package.json
 ```
 
@@ -307,6 +314,38 @@ Features:
 - "Showing X to Y of Z results" counter
 - Mobile-responsive design
 - Proper disabled states
+
+### Table Sorting (`useSort` hook)
+Reusable hook for sortable table columns with visual indicators:
+
+```typescript
+import { useSort, SortIcon } from '@/lib/useSort';
+
+const { sortedData, sortKey, sortDirection, handleSort } = useSort(data, 'defaultColumn');
+
+// In table header
+<th
+  className="cursor-pointer hover:bg-gray-100"
+  onClick={() => handleSort('columnName')}
+>
+  <div className="flex items-center gap-1">
+    Column Name
+    <SortIcon sortKey="columnName" currentKey={sortKey as string} direction={sortDirection} />
+  </div>
+</th>
+
+// In table body
+{sortedData.map((item) => (
+  <tr key={item.id}>...</tr>
+))}
+```
+
+Features:
+- Click to cycle through: ascending → descending → unsorted
+- Visual sort indicators with directional arrows
+- Type-safe sorting for strings, numbers, and dates
+- Handles null/undefined values properly
+- Works with any data structure
 
 ### Loading Skeleton
 Animated skeleton screens during data loading:

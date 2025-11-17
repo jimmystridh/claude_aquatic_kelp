@@ -7,6 +7,7 @@ import { useToast } from './useToast';
 import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import { exportToCSV } from '@/lib/csvExport';
+import { useSort, SortIcon } from '@/lib/useSort';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -21,6 +22,7 @@ export default function Customers() {
   const pageSize = 10;
 
   const toast = useToast();
+  const { sortedData: sortedCustomers, sortKey, sortDirection, handleSort } = useSort(customers, 'name');
 
   const loadCustomers = async (page = 1, query = '') => {
     setLoading(true);
@@ -296,16 +298,56 @@ export default function Customers() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1">
+                  Name
+                  <SortIcon sortKey="name" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('emailAddress')}
+              >
+                <div className="flex items-center gap-1">
+                  Email
+                  <SortIcon sortKey="emailAddress" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('phoneNumber')}
+              >
+                <div className="flex items-center gap-1">
+                  Phone
+                  <SortIcon sortKey="phoneNumber" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('invoiceCity')}
+              >
+                <div className="flex items-center gap-1">
+                  City
+                  <SortIcon sortKey="invoiceCity" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('invoiceCountryCode')}
+              >
+                <div className="flex items-center gap-1">
+                  Country
+                  <SortIcon sortKey="invoiceCountryCode" currentKey={sortKey as string} direction={sortDirection} />
+                </div>
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {customers.map((customer) => (
+            {sortedCustomers.map((customer) => (
               <tr key={customer.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.emailAddress || '-'}</td>
