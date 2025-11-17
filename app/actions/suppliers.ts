@@ -73,6 +73,20 @@ export async function deleteSupplier(id: string) {
   }
 }
 
+export async function searchSuppliers(query: string, page = 1, pageSize = 50) {
+  try {
+    const client = getVismaClient();
+    const result = await client.suppliers.search(query, { page, pageSize });
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Failed to search suppliers:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to search suppliers',
+    };
+  }
+}
+
 // Supplier Invoices
 export async function getSupplierInvoices(page = 1, pageSize = 50) {
   try {

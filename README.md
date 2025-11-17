@@ -31,13 +31,25 @@ This project consists of two main parts:
 
 ### Dashboard Features
 
-- 📊 **Customer Management** - Create, view, and manage customers
-- 📦 **Product/Service Catalog** - Manage articles with pricing
-- 🧾 **Invoice Creation** - Create and send customer invoices
-- 👥 **Supplier Management** - Track and manage suppliers
+#### Core Functionality
+- 📊 **Customer Management** - Create, view, search, and manage customers
+- 📦 **Product/Service Catalog** - Manage articles with pricing and descriptions
+- 🧾 **Invoice Creation** - Create and send customer invoices with detailed views
+- 👥 **Supplier Management** - Track and manage supplier information
 - 🔄 **Real-time Updates** - Instant UI updates after operations
-- 🎨 **Modern UI** - Clean, responsive interface with Tailwind CSS
 - 🔒 **Secure Backend** - Next.js server actions for API communication
+
+#### UI/UX Features
+- 🔔 **Toast Notifications** - Elegant, non-blocking notifications for all user actions
+- 📄 **Pagination** - Efficient data handling with smart pagination (10 items per page)
+- 🔍 **Search Functionality** - Real-time search across customers, articles, and suppliers
+- ⚡ **Loading States** - Animated skeleton screens for better perceived performance
+- 📋 **Invoice Modal** - Detailed invoice view with line items, VAT breakdown, and totals
+- ✅ **Form Validation** - Client-side validation with helpful error messages
+- 🎯 **Empty States** - Professional empty states with clear call-to-action buttons
+- 🔄 **Manual Refresh** - Refresh buttons with spinning animations
+- 📱 **Mobile Responsive** - Fully responsive design that works on all screen sizes
+- 🎨 **Modern UI** - Clean interface with Tailwind CSS, shadows, and smooth transitions
 
 ## Getting Started
 
@@ -98,10 +110,42 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 The dashboard provides tabs for managing different resources:
 
-- **Customers Tab**: View all customers, create new customers, and delete existing ones
-- **Articles Tab**: Manage products and services with pricing information
-- **Invoices Tab**: Create invoices by selecting customers and articles
-- **Suppliers Tab**: Manage supplier information
+#### Customers Tab
+- View all customers with pagination (10 per page)
+- Search customers by name in real-time
+- Create new customers with validation
+- Delete existing customers with confirmation
+- Country code validation (2-letter codes)
+- Email and phone validation
+- Refresh data manually with one click
+
+#### Articles Tab
+- Browse all products/services with pagination
+- Search articles by name
+- Create new articles with descriptions, prices, and units
+- Delete articles with confirmation
+- Price validation (positive numbers only)
+- Auto-populate invoice forms from article data
+
+#### Invoices Tab
+- View all customer invoices with pagination
+- Create invoices by selecting customers and articles
+- Auto-fill line item details from selected article
+- View detailed invoice information in modal
+  - Line items with quantities and prices
+  - VAT breakdown
+  - Total amounts
+- Send invoices via email
+- Status indicators (Paid/Unpaid)
+- Date management (invoice date and due date)
+
+#### Suppliers Tab
+- View all suppliers with pagination
+- Search suppliers by name
+- Create new suppliers with contact information
+- Delete suppliers with confirmation
+- Country code validation
+- City and contact details management
 
 ### Using the NPM Package Directly
 
@@ -190,13 +234,106 @@ claude_aquatic_kelp/
 │   │   ├── Customers.tsx
 │   │   ├── Articles.tsx
 │   │   ├── Invoices.tsx
-│   │   └── Suppliers.tsx
+│   │   ├── Suppliers.tsx
+│   │   ├── Toast.tsx             # Toast notification UI
+│   │   ├── useToast.tsx          # Toast hook
+│   │   ├── Pagination.tsx        # Pagination component
+│   │   ├── LoadingSkeleton.tsx   # Loading state component
+│   │   └── InvoiceModal.tsx      # Invoice detail modal
 │   ├── layout.tsx
 │   └── page.tsx                   # Main dashboard
 ├── lib/
 │   └── visma.ts                   # Client initialization
 └── package.json
 ```
+
+## Reusable Components
+
+The application includes several reusable components that enhance the user experience:
+
+### Toast Notifications (`useToast` hook)
+Elegant, non-blocking notifications with auto-dismiss and manual close options:
+
+```typescript
+import { useToast } from './useToast';
+
+const toast = useToast();
+
+// Show notifications
+toast.success('Customer created successfully!');
+toast.error('Failed to delete article');
+toast.info('Refreshing data...');
+toast.warning('Validation error');
+
+// Add container to component
+<toast.ToastContainer />
+```
+
+Features:
+- Auto-dismiss after 5 seconds
+- Manual close button
+- Four types: success, error, info, warning
+- Smooth slide-in animation
+- Multiple toasts can be displayed simultaneously
+
+### Pagination Component
+Smart pagination with truncation and result counting:
+
+```typescript
+import Pagination from './Pagination';
+
+<Pagination
+  currentPage={currentPage}
+  totalPages={totalPages}
+  totalCount={totalCount}
+  pageSize={pageSize}
+  onPageChange={setCurrentPage}
+/>
+```
+
+Features:
+- Page number buttons with smart truncation
+- Previous/Next navigation
+- "Showing X to Y of Z results" counter
+- Mobile-responsive design
+- Proper disabled states
+
+### Loading Skeleton
+Animated skeleton screens during data loading:
+
+```typescript
+import LoadingSkeleton from './LoadingSkeleton';
+
+if (loading && items.length === 0) {
+  return <LoadingSkeleton />;
+}
+```
+
+Features:
+- Matches table structure for smooth transition
+- Pulse animation effect
+- Better perceived performance
+
+### Invoice Modal
+Detailed invoice view with full breakdown:
+
+```typescript
+import InvoiceModal from './InvoiceModal';
+
+{selectedInvoice && (
+  <InvoiceModal
+    invoice={selectedInvoice}
+    onClose={() => setSelectedInvoice(null)}
+  />
+)}
+```
+
+Features:
+- Shows all invoice rows with calculations
+- VAT breakdown
+- Customer information
+- Status badges
+- Close on backdrop click or close button
 
 ## Building for Production
 

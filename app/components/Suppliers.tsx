@@ -1,161 +1,268 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSuppliers, createSupplier, deleteSupplier } from '@/app/actions/suppliers';
+import { getSuppliers, createSupplier, deleteSupplier, searchSuppliers } from '@/app/actions/suppliers';
 import type { Supplier } from '@visma-eaccounting/client';
+import { useToast } from './useToast';
+import Pagination from './Pagination';
+import LoadingSkeleton from './LoadingSkeleton';
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
 
-  const loadSuppliers = async () => {
+  const toast = useToast();
+
+  const loadSuppliers = async (page = 1, query = '') => {
     setLoading(true);
-    setError(null);
-    const result = await getSuppliers();
+    const result = query
+      ? await searchSuppliers(query, page, pageSize)
+      : await getSuppliers(page, pageSize);
+
     if (result.success && result.data) {
       setSuppliers(result.data.data);
+      setTotalPages(result.data.meta.totalPages);
+      setTotalCount(result.data.meta.totalCount);
+      setCurrentPage(result.data.meta.currentPage);
     } else {
-      setError(result.error || 'Failed to load suppliers');
+      toast.error(result.error || 'Failed to load suppliers');
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadSuppliers();
-  }, []);
+    loadSuppliers(currentPage, searchQuery);
+  }, [currentPage]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    loadSuppliers(1, searchQuery);
+  };
 
   const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
     const formData = new FormData(e.currentTarget);
 
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const phone = formData.get('phone') as string;
+    const city = formData.get('city') as string;
+    const country = formData.get('country') as string;
+
+    // Validation
+    if (!name.trim()) {
+      toast.error('Supplier name is required');
+      setSubmitting(false);
+      return;
+    }
+
+    if (country && country.length !== 2) {
+      toast.error('Country code must be exactly 2 letters (e.g., SE, NO, DK)');
+      setSubmitting(false);
+      return;
+    }
+
     const result = await createSupplier({
-      name: formData.get('name') as string,
-      emailAddress: formData.get('email') as string,
-      phoneNumber: formData.get('phone') as string,
-      city: formData.get('city') as string,
-      countryCode: formData.get('country') as string,
+      name: name.trim(),
+      emailAddress: email || undefined,
+      phoneNumber: phone || undefined,
+      city: city || undefined,
+      countryCode: country || undefined,
     });
 
     if (result.success) {
       setShowForm(false);
-      loadSuppliers();
+      toast.success('Supplier created successfully!');
+      e.currentTarget.reset();
+      loadSuppliers(currentPage, searchQuery);
     } else {
-      alert(result.error);
+      toast.error(result.error || 'Failed to create supplier');
     }
+    setSubmitting(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this supplier?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
     const result = await deleteSupplier(id);
     if (result.success) {
-      loadSuppliers();
+      toast.success('Supplier deleted successfully');
+      loadSuppliers(currentPage, searchQuery);
     } else {
-      alert(result.error);
+      toast.error(result.error || 'Failed to delete supplier');
     }
   };
 
-  if (loading) {
-    return <div className="p-4">Loading suppliers...</div>;
+  const handleRefresh = () => {
+    toast.info('Refreshing suppliers...');
+    loadSuppliers(currentPage, searchQuery);
+  };
+
+  if (loading && suppliers.length === 0) {
+    return <LoadingSkeleton />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Suppliers</h2>
+      <toast.ToastContainer />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">Suppliers</h2>
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            title="Refresh"
+          >
+            <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          {showForm ? 'Cancel' : 'Add Supplier'}
+          {showForm ? 'Cancel' : '+ Add Supplier'}
         </button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
-          {error}
-        </div>
-      )}
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search suppliers by name..."
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+        <button
+          type="submit"
+          className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          Search
+        </button>
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setCurrentPage(1);
+              loadSuppliers(1, '');
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </form>
 
       {showForm && (
-        <form onSubmit={handleCreateSupplier} className="p-4 bg-gray-50 rounded space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input
-              type="text"
-              name="name"
-              required
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone</label>
-            <input
-              type="tel"
-              name="phone"
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleCreateSupplier} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
+          <h3 className="text-lg font-semibold mb-4">Create New Supplier</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">City</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="ABC Supplies Ltd"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+              <input
+                type="email"
+                name="email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="contact@supplier.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="+46 8 123 456"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">City</label>
               <input
                 type="text"
                 name="city"
-                className="w-full px-3 py-2 border rounded"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Stockholm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Country Code</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Country Code</label>
               <input
                 type="text"
                 name="country"
+                maxLength={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="SE"
-                className="w-full px-3 py-2 border rounded"
               />
             </div>
           </div>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Create Supplier
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Creating...' : 'Create Supplier'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
-          <thead className="bg-gray-100">
+      <div className="overflow-x-auto bg-white rounded-lg shadow">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-left">Email</th>
-              <th className="px-4 py-2 text-left">Phone</th>
-              <th className="px-4 py-2 text-left">City</th>
-              <th className="px-4 py-2 text-left">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-200">
             {suppliers.map((supplier) => (
-              <tr key={supplier.id} className="border-t">
-                <td className="px-4 py-2">{supplier.name}</td>
-                <td className="px-4 py-2">{supplier.emailAddress || '-'}</td>
-                <td className="px-4 py-2">{supplier.phoneNumber || '-'}</td>
-                <td className="px-4 py-2">{supplier.city || '-'}</td>
-                <td className="px-4 py-2">
+              <tr key={supplier.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{supplier.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{supplier.emailAddress || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{supplier.phoneNumber || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{supplier.city || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{supplier.countryCode || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
-                    onClick={() => supplier.id && handleDelete(supplier.id)}
-                    className="text-red-600 hover:text-red-800"
+                    onClick={() => supplier.id && handleDelete(supplier.id, supplier.name)}
+                    className="text-red-600 hover:text-red-900"
                   >
                     Delete
                   </button>
@@ -164,10 +271,34 @@ export default function Suppliers() {
             ))}
           </tbody>
         </table>
-        {suppliers.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No suppliers found</div>
+        {suppliers.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No suppliers found</h3>
+            <p className="mt-1 text-sm text-gray-500">Get started by creating a new supplier.</p>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                + Add Supplier
+              </button>
+            </div>
+          </div>
         )}
       </div>
+
+      {suppliers.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 }
