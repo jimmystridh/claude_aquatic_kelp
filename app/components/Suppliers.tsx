@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier, searchSuppliers } from '@/app/actions/suppliers';
 import type { Supplier } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
@@ -10,6 +10,7 @@ import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
 import { useDebounce } from '@/lib/useDebounce';
 import StatCard from './StatCard';
+import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -25,10 +26,47 @@ export default function Suppliers() {
 
   const toast = useToast();
   const { sortedData: sortedSuppliers, sortKey, sortDirection, handleSort } = useSort(suppliers, 'name');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search query to reduce API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const isSearching = searchQuery !== debouncedSearchQuery;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'r',
+      handler: () => {
+        toast.info('Refreshing suppliers...');
+        loadSuppliers(currentPage, debouncedSearchQuery);
+      },
+      description: 'Refresh suppliers'
+    },
+    {
+      key: 'n',
+      handler: () => {
+        setShowForm(true);
+        setEditingSupplier(null);
+      },
+      description: 'New supplier'
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (showForm) {
+          handleCancelEdit();
+        }
+      },
+      description: 'Close form'
+    },
+    {
+      key: '/',
+      handler: () => {
+        searchInputRef.current?.focus();
+      },
+      description: 'Focus search'
+    }
+  ]);
 
   const loadSuppliers = async (page = 1, query = '') => {
     setLoading(true);
@@ -231,6 +269,7 @@ export default function Suppliers() {
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="flex-1 relative">
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

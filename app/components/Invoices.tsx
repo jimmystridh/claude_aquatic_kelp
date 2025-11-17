@@ -13,6 +13,7 @@ import PrintInvoice from './PrintInvoice';
 import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
 import StatCard from './StatCard';
+import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -41,6 +42,51 @@ export default function Invoices() {
 
   // Apply sorting to filtered invoices
   const { sortedData: sortedInvoices, sortKey, sortDirection, handleSort } = useSort(filteredInvoices, 'customerName');
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'r',
+      handler: () => {
+        handleRefresh();
+      },
+      description: 'Refresh invoices'
+    },
+    {
+      key: 'n',
+      handler: () => {
+        setShowForm(true);
+      },
+      description: 'New invoice'
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (showForm) {
+          setShowForm(false);
+        } else if (selectedInvoice) {
+          setSelectedInvoice(null);
+        } else if (printInvoice) {
+          setPrintInvoice(null);
+        }
+      },
+      description: 'Close form/modal'
+    },
+    {
+      key: 'f',
+      handler: () => {
+        // Cycle through filter states
+        if (statusFilter === 'all') {
+          setStatusFilter('paid');
+        } else if (statusFilter === 'paid') {
+          setStatusFilter('unpaid');
+        } else {
+          setStatusFilter('all');
+        }
+      },
+      description: 'Cycle filter (All/Paid/Unpaid)'
+    }
+  ]);
 
   const loadData = async (page = 1) => {
     setLoading(true);

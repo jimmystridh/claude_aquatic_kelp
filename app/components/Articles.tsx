@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getArticles, createArticle, updateArticle, deleteArticle, searchArticles } from '@/app/actions/articles';
 import type { Article } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
@@ -10,6 +10,7 @@ import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
 import { useDebounce } from '@/lib/useDebounce';
 import StatCard from './StatCard';
+import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
 
 export default function Articles() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -25,10 +26,47 @@ export default function Articles() {
 
   const toast = useToast();
   const { sortedData: sortedArticles, sortKey, sortDirection, handleSort } = useSort(articles, 'name');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search query to reduce API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const isSearching = searchQuery !== debouncedSearchQuery;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'r',
+      handler: () => {
+        toast.info('Refreshing articles...');
+        loadArticles(currentPage, debouncedSearchQuery);
+      },
+      description: 'Refresh articles'
+    },
+    {
+      key: 'n',
+      handler: () => {
+        setShowForm(true);
+        setEditingArticle(null);
+      },
+      description: 'New article'
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (showForm) {
+          handleCancelEdit();
+        }
+      },
+      description: 'Close form'
+    },
+    {
+      key: '/',
+      handler: () => {
+        searchInputRef.current?.focus();
+      },
+      description: 'Focus search'
+    }
+  ]);
 
   const loadArticles = async (page = 1, query = '') => {
     setLoading(true);
@@ -236,6 +274,7 @@ export default function Articles() {
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="flex-1 relative">
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
