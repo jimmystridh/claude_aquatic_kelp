@@ -32,11 +32,11 @@ This project consists of two main parts:
 ### Dashboard Features
 
 #### Core Functionality
-- 📊 **Customer Management** - Create, view, search, and manage customers
-- 📦 **Product/Service Catalog** - Manage articles with pricing and descriptions
+- 📊 **Customer Management** - Full CRUD: Create, Read, Update (Edit), Delete, and search customers
+- 📦 **Product/Service Catalog** - Full CRUD: Manage articles with edit, pricing, and descriptions
 - 🧾 **Invoice Creation** - Create and send customer invoices with detailed views
-- 👥 **Supplier Management** - Track and manage supplier information
-- 🔄 **Real-time Updates** - Instant UI updates after operations
+- 👥 **Supplier Management** - Full CRUD: Create, edit, delete, and track supplier information
+- 🔄 **Real-time Updates** - Instant UI updates after all operations
 - 🔒 **Secure Backend** - Next.js server actions for API communication
 
 #### UI/UX Features
@@ -113,6 +113,7 @@ The dashboard provides tabs for managing different resources:
 #### Customers Tab
 - View all customers with pagination (10 per page)
 - Search customers by name in real-time
+- **Edit existing customers** - Click Edit to modify customer details
 - Create new customers with validation
 - Delete existing customers with confirmation
 - Country code validation (2-letter codes)
@@ -122,6 +123,7 @@ The dashboard provides tabs for managing different resources:
 #### Articles Tab
 - Browse all products/services with pagination
 - Search articles by name
+- **Edit existing articles** - Click Edit to modify article details
 - Create new articles with descriptions, prices, and units
 - Delete articles with confirmation
 - Price validation (positive numbers only)
@@ -142,6 +144,7 @@ The dashboard provides tabs for managing different resources:
 #### Suppliers Tab
 - View all suppliers with pagination
 - Search suppliers by name
+- **Edit existing suppliers** - Click Edit to modify supplier details
 - Create new suppliers with contact information
 - Delete suppliers with confirmation
 - Country code validation

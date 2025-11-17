@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getCustomers, createCustomer, deleteCustomer, searchCustomers } from '@/app/actions/customers';
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer, searchCustomers } from '@/app/actions/customers';
 import type { Customer } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
 import Pagination from './Pagination';
@@ -12,6 +12,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -47,7 +48,7 @@ export default function Customers() {
     loadCustomers(1, searchQuery);
   };
 
-  const handleCreateCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     const formData = new FormData(e.currentTarget);
@@ -73,17 +74,30 @@ export default function Customers() {
       return;
     }
 
-    const result = await createCustomer(data);
+    const result = editingCustomer
+      ? await updateCustomer(editingCustomer.id!, data)
+      : await createCustomer(data);
 
     if (result.success) {
       setShowForm(false);
-      toast.success('Customer created successfully!');
+      setEditingCustomer(null);
+      toast.success(editingCustomer ? 'Customer updated successfully!' : 'Customer created successfully!');
       e.currentTarget.reset();
       loadCustomers(currentPage, searchQuery);
     } else {
-      toast.error(result.error || 'Failed to create customer');
+      toast.error(result.error || `Failed to ${editingCustomer ? 'update' : 'create'} customer`);
     }
     setSubmitting(false);
+  };
+
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setShowForm(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCustomer(null);
+    setShowForm(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -126,7 +140,13 @@ export default function Customers() {
           </button>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              handleCancelEdit();
+            } else {
+              setShowForm(true);
+            }
+          }}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           {showForm ? 'Cancel' : '+ Add Customer'}
@@ -163,8 +183,10 @@ export default function Customers() {
       </form>
 
       {showForm && (
-        <form onSubmit={handleCreateCustomer} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Create New Customer</h3>
+        <form onSubmit={handleSubmit} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
+          <h3 className="text-lg font-semibold mb-4">
+            {editingCustomer ? 'Edit Customer' : 'Create New Customer'}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">
@@ -174,6 +196,7 @@ export default function Customers() {
                 type="text"
                 name="name"
                 required
+                defaultValue={editingCustomer?.name || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Acme Corporation"
               />
@@ -183,6 +206,7 @@ export default function Customers() {
               <input
                 type="email"
                 name="email"
+                defaultValue={editingCustomer?.emailAddress || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="contact@acme.com"
               />
@@ -192,6 +216,7 @@ export default function Customers() {
               <input
                 type="tel"
                 name="phone"
+                defaultValue={editingCustomer?.phoneNumber || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="+46 123 456 789"
               />
@@ -201,6 +226,7 @@ export default function Customers() {
               <input
                 type="text"
                 name="city"
+                defaultValue={editingCustomer?.invoiceCity || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Stockholm"
               />
@@ -212,6 +238,7 @@ export default function Customers() {
                 name="country"
                 placeholder="SE"
                 maxLength={2}
+                defaultValue={editingCustomer?.invoiceCountryCode || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent uppercase"
               />
               <p className="text-xs text-gray-500 mt-1">2-letter code (SE, NO, DK, etc.)</p>
@@ -223,11 +250,13 @@ export default function Customers() {
               disabled={submitting}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Creating...' : 'Create Customer'}
+              {submitting
+                ? (editingCustomer ? 'Updating...' : 'Creating...')
+                : (editingCustomer ? 'Update Customer' : 'Create Customer')}
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={handleCancelEdit}
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Cancel
@@ -257,6 +286,12 @@ export default function Customers() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.invoiceCity || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.invoiceCountryCode || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => handleEdit(customer)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => customer.id && handleDelete(customer.id, customer.name)}
                     className="text-red-600 hover:text-red-900"

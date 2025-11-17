@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSuppliers, createSupplier, deleteSupplier, searchSuppliers } from '@/app/actions/suppliers';
+import { getSuppliers, createSupplier, updateSupplier, deleteSupplier, searchSuppliers } from '@/app/actions/suppliers';
 import type { Supplier } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
 import Pagination from './Pagination';
@@ -12,6 +12,7 @@ export default function Suppliers() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -47,7 +48,7 @@ export default function Suppliers() {
     loadSuppliers(1, searchQuery);
   };
 
-  const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     const formData = new FormData(e.currentTarget);
@@ -71,23 +72,38 @@ export default function Suppliers() {
       return;
     }
 
-    const result = await createSupplier({
+    const data = {
       name: name.trim(),
       emailAddress: email || undefined,
       phoneNumber: phone || undefined,
       city: city || undefined,
       countryCode: country || undefined,
-    });
+    };
+
+    const result = editingSupplier
+      ? await updateSupplier(editingSupplier.id!, data)
+      : await createSupplier(data);
 
     if (result.success) {
       setShowForm(false);
-      toast.success('Supplier created successfully!');
+      setEditingSupplier(null);
+      toast.success(editingSupplier ? 'Supplier updated successfully!' : 'Supplier created successfully!');
       e.currentTarget.reset();
       loadSuppliers(currentPage, searchQuery);
     } else {
-      toast.error(result.error || 'Failed to create supplier');
+      toast.error(result.error || `Failed to ${editingSupplier ? 'update' : 'create'} supplier`);
     }
     setSubmitting(false);
+  };
+
+  const handleEdit = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setShowForm(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSupplier(null);
+    setShowForm(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -130,7 +146,13 @@ export default function Suppliers() {
           </button>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              handleCancelEdit();
+            } else {
+              setShowForm(true);
+            }
+          }}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           {showForm ? 'Cancel' : '+ Add Supplier'}
@@ -167,8 +189,10 @@ export default function Suppliers() {
       </form>
 
       {showForm && (
-        <form onSubmit={handleCreateSupplier} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Create New Supplier</h3>
+        <form onSubmit={handleSubmit} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
+          <h3 className="text-lg font-semibold mb-4">
+            {editingSupplier ? 'Edit Supplier' : 'Create New Supplier'}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">
@@ -178,6 +202,7 @@ export default function Suppliers() {
                 type="text"
                 name="name"
                 required
+                defaultValue={editingSupplier?.name || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="ABC Supplies Ltd"
               />
@@ -187,6 +212,7 @@ export default function Suppliers() {
               <input
                 type="email"
                 name="email"
+                defaultValue={editingSupplier?.emailAddress || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="contact@supplier.com"
               />
@@ -196,6 +222,7 @@ export default function Suppliers() {
               <input
                 type="tel"
                 name="phone"
+                defaultValue={editingSupplier?.phoneNumber || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="+46 8 123 456"
               />
@@ -205,6 +232,7 @@ export default function Suppliers() {
               <input
                 type="text"
                 name="city"
+                defaultValue={editingSupplier?.city || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Stockholm"
               />
@@ -215,6 +243,7 @@ export default function Suppliers() {
                 type="text"
                 name="country"
                 maxLength={2}
+                defaultValue={editingSupplier?.countryCode || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="SE"
               />
@@ -226,11 +255,13 @@ export default function Suppliers() {
               disabled={submitting}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Creating...' : 'Create Supplier'}
+              {submitting
+                ? (editingSupplier ? 'Updating...' : 'Creating...')
+                : (editingSupplier ? 'Update Supplier' : 'Create Supplier')}
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={handleCancelEdit}
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Cancel
@@ -260,6 +291,12 @@ export default function Suppliers() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{supplier.city || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{supplier.countryCode || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => handleEdit(supplier)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => supplier.id && handleDelete(supplier.id, supplier.name)}
                     className="text-red-600 hover:text-red-900"

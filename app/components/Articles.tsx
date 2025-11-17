@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getArticles, createArticle, deleteArticle, searchArticles } from '@/app/actions/articles';
+import { getArticles, createArticle, updateArticle, deleteArticle, searchArticles } from '@/app/actions/articles';
 import type { Article } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
 import Pagination from './Pagination';
@@ -12,6 +12,7 @@ export default function Articles() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -47,7 +48,7 @@ export default function Articles() {
     loadArticles(1, searchQuery);
   };
 
-  const handleCreateArticle = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     const formData = new FormData(e.currentTarget);
@@ -69,23 +70,38 @@ export default function Articles() {
       return;
     }
 
-    const result = await createArticle({
+    const data = {
       name: name.trim(),
       description: (formData.get('description') as string) || undefined,
       articleNumber: (formData.get('articleNumber') as string) || undefined,
       unitPrice,
       unit: (formData.get('unit') as string) || undefined,
-    });
+    };
+
+    const result = editingArticle
+      ? await updateArticle(editingArticle.id!, data)
+      : await createArticle(data);
 
     if (result.success) {
       setShowForm(false);
-      toast.success('Article created successfully!');
+      setEditingArticle(null);
+      toast.success(editingArticle ? 'Article updated successfully!' : 'Article created successfully!');
       e.currentTarget.reset();
       loadArticles(currentPage, searchQuery);
     } else {
-      toast.error(result.error || 'Failed to create article');
+      toast.error(result.error || `Failed to ${editingArticle ? 'update' : 'create'} article`);
     }
     setSubmitting(false);
+  };
+
+  const handleEdit = (article: Article) => {
+    setEditingArticle(article);
+    setShowForm(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingArticle(null);
+    setShowForm(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -128,7 +144,13 @@ export default function Articles() {
           </button>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              handleCancelEdit();
+            } else {
+              setShowForm(true);
+            }
+          }}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           {showForm ? 'Cancel' : '+ Add Article'}
@@ -165,8 +187,10 @@ export default function Articles() {
       </form>
 
       {showForm && (
-        <form onSubmit={handleCreateArticle} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Create New Article</h3>
+        <form onSubmit={handleSubmit} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
+          <h3 className="text-lg font-semibold mb-4">
+            {editingArticle ? 'Edit Article' : 'Create New Article'}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">
@@ -176,6 +200,7 @@ export default function Articles() {
                 type="text"
                 name="name"
                 required
+                defaultValue={editingArticle?.name || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Consulting Service"
               />
@@ -185,6 +210,7 @@ export default function Articles() {
               <input
                 type="text"
                 name="articleNumber"
+                defaultValue={editingArticle?.articleNumber || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="ART-001"
               />
@@ -194,6 +220,7 @@ export default function Articles() {
               <textarea
                 name="description"
                 rows={3}
+                defaultValue={editingArticle?.description || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Detailed description of the product or service"
               />
@@ -205,6 +232,7 @@ export default function Articles() {
                 name="unitPrice"
                 step="0.01"
                 min="0"
+                defaultValue={editingArticle?.unitPrice || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="1000.00"
               />
@@ -214,6 +242,7 @@ export default function Articles() {
               <input
                 type="text"
                 name="unit"
+                defaultValue={editingArticle?.unit || ''}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="hour, piece, kg, etc."
               />
@@ -225,11 +254,13 @@ export default function Articles() {
               disabled={submitting}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Creating...' : 'Create Article'}
+              {submitting
+                ? (editingArticle ? 'Updating...' : 'Creating...')
+                : (editingArticle ? 'Update Article' : 'Create Article')}
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={handleCancelEdit}
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Cancel
@@ -261,6 +292,12 @@ export default function Articles() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{article.unit || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => handleEdit(article)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => article.id && handleDelete(article.id, article.name)}
                     className="text-red-600 hover:text-red-900"

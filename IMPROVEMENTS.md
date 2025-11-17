@@ -123,6 +123,7 @@ This document outlines the major improvements made to enhance the user experienc
 - ✅ Mobile responsive
 - ✅ Country code validation
 - ✅ Better table styling
+- ✅ **Edit/Update functionality** - Full CRUD with inline editing
 
 ### Articles Component
 - ✅ Toast notifications
@@ -135,6 +136,7 @@ This document outlines the major improvements made to enhance the user experienc
 - ✅ Mobile responsive
 - ✅ Unit price validation
 - ✅ Description truncation in table
+- ✅ **Edit/Update functionality** - Full CRUD with inline editing
 
 ### Invoices Component
 - ✅ Toast notifications
@@ -160,18 +162,21 @@ This document outlines the major improvements made to enhance the user experienc
 - ✅ Mobile responsive
 - ✅ Country code validation
 - ✅ Better table styling
+- ✅ **Edit/Update functionality** - Full CRUD with inline editing
 
 ### Implementation Complete
 
-All four main components (Customers, Articles, Invoices, and Suppliers) now feature:
+All main components (Customers, Articles, and Suppliers) now feature:
 
-1. **Search functionality** - Implemented with server actions and UI
-2. **Pagination** - Component ready and integrated
-3. **Toast notifications** - Hook implemented throughout
-4. **Loading skeletons** - Component used in all components
-5. **Empty states** - Pattern applied to all components
-6. **Form validation** - Consistent validation across all forms
-7. **Refresh functionality** - Available in all components
+1. **Complete CRUD operations** - Create, Read, Update, and Delete
+2. **Edit/Update functionality** - Inline editing with form pre-population
+3. **Search functionality** - Implemented with server actions and UI
+4. **Pagination** - Component ready and integrated
+5. **Toast notifications** - Hook implemented throughout
+6. **Loading skeletons** - Component used in all components
+7. **Empty states** - Pattern applied to all components
+8. **Form validation** - Consistent validation across all forms
+9. **Refresh functionality** - Available in all components
 
 ## How to Use New Components
 
