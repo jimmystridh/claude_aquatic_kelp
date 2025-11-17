@@ -6,6 +6,7 @@ import type { Customer } from '@visma-eaccounting/client';
 import { useToast } from './useToast';
 import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
+import { exportToCSV } from '@/lib/csvExport';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -117,6 +118,22 @@ export default function Customers() {
     loadCustomers(currentPage, searchQuery);
   };
 
+  const handleExport = () => {
+    exportToCSV(
+      customers,
+      'customers',
+      [
+        { key: 'name', header: 'Name' },
+        { key: 'emailAddress', header: 'Email' },
+        { key: 'phoneNumber', header: 'Phone' },
+        { key: 'invoiceCity', header: 'City' },
+        { key: 'invoiceCountryCode', header: 'Country Code' },
+        { key: 'customerNumber', header: 'Customer Number' },
+      ]
+    );
+    toast.success('Customers exported to CSV');
+  };
+
   if (loading && customers.length === 0) {
     return <LoadingSkeleton />;
   }
@@ -136,6 +153,16 @@ export default function Customers() {
           >
             <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={customers.length === 0}
+            className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            title="Export to CSV"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </button>
         </div>

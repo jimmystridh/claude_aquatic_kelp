@@ -50,6 +50,8 @@ This project consists of two main parts:
 - 🔄 **Manual Refresh** - Refresh buttons with spinning animations
 - 📱 **Mobile Responsive** - Fully responsive design that works on all screen sizes
 - 🎨 **Modern UI** - Clean interface with Tailwind CSS, shadows, and smooth transitions
+- 📊 **CSV Export** - Export all data (customers, articles, suppliers, invoices) to CSV files
+- 🔍 **Invoice Filtering** - Filter invoices by status (All, Paid, Unpaid) with live counts
 
 ## Getting Started
 
@@ -116,6 +118,7 @@ The dashboard provides tabs for managing different resources:
 - **Edit existing customers** - Click Edit to modify customer details
 - Create new customers with validation
 - Delete existing customers with confirmation
+- **Export to CSV** - Download customer data to spreadsheet
 - Country code validation (2-letter codes)
 - Email and phone validation
 - Refresh data manually with one click
@@ -126,11 +129,13 @@ The dashboard provides tabs for managing different resources:
 - **Edit existing articles** - Click Edit to modify article details
 - Create new articles with descriptions, prices, and units
 - Delete articles with confirmation
+- **Export to CSV** - Download articles data to spreadsheet
 - Price validation (positive numbers only)
 - Auto-populate invoice forms from article data
 
 #### Invoices Tab
 - View all customer invoices with pagination
+- **Filter by status** - Show All, Paid, or Unpaid invoices with live counts
 - Create invoices by selecting customers and articles
 - Auto-fill line item details from selected article
 - View detailed invoice information in modal
@@ -138,6 +143,7 @@ The dashboard provides tabs for managing different resources:
   - VAT breakdown
   - Total amounts
 - Send invoices via email
+- **Export to CSV** - Download invoice data to spreadsheet (respects current filter)
 - Status indicators (Paid/Unpaid)
 - Date management (invoice date and due date)
 
@@ -147,6 +153,7 @@ The dashboard provides tabs for managing different resources:
 - **Edit existing suppliers** - Click Edit to modify supplier details
 - Create new suppliers with contact information
 - Delete suppliers with confirmation
+- **Export to CSV** - Download supplier data to spreadsheet
 - Country code validation
 - City and contact details management
 

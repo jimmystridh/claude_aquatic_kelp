@@ -9,6 +9,7 @@ import { useToast } from './useToast';
 import Pagination from './Pagination';
 import LoadingSkeleton from './LoadingSkeleton';
 import InvoiceModal from './InvoiceModal';
+import { exportToCSV } from '@/lib/csvExport';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -18,12 +19,21 @@ export default function Invoices() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<CustomerInvoice | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10;
 
   const toast = useToast();
+
+  // Filter invoices based on status
+  const filteredInvoices = invoices.filter((invoice) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'paid') return invoice.isPaid === true;
+    if (statusFilter === 'unpaid') return invoice.isPaid !== true;
+    return true;
+  });
 
   const loadData = async (page = 1) => {
     setLoading(true);
@@ -142,6 +152,22 @@ export default function Invoices() {
     loadData(currentPage);
   };
 
+  const handleExport = () => {
+    exportToCSV(
+      filteredInvoices,
+      'invoices',
+      [
+        { key: 'invoiceNumber', header: 'Invoice #' },
+        { key: 'customerName', header: 'Customer' },
+        { key: 'invoiceDate', header: 'Invoice Date' },
+        { key: 'dueDate', header: 'Due Date' },
+        { key: 'totalAmount', header: 'Total Amount' },
+        { key: 'isPaid', header: 'Paid' },
+      ]
+    );
+    toast.success('Invoices exported to CSV');
+  };
+
   const handleViewInvoice = (invoice: CustomerInvoice) => {
     setSelectedInvoice(invoice);
   };
@@ -174,12 +200,57 @@ export default function Invoices() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
+          <button
+            onClick={handleExport}
+            disabled={filteredInvoices.length === 0}
+            className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            title="Export to CSV"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </button>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           {showForm ? 'Cancel' : '+ Create Invoice'}
+        </button>
+      </div>
+
+      {/* Status Filter */}
+      <div className="flex gap-2">
+        <span className="text-sm font-medium text-gray-700 flex items-center">Filter by status:</span>
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            statusFilter === 'all'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          All ({invoices.length})
+        </button>
+        <button
+          onClick={() => setStatusFilter('paid')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            statusFilter === 'paid'
+              ? 'bg-green-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Paid ({invoices.filter((inv) => inv.isPaid === true).length})
+        </button>
+        <button
+          onClick={() => setStatusFilter('unpaid')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            statusFilter === 'unpaid'
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Unpaid ({invoices.filter((inv) => inv.isPaid !== true).length})
         </button>
       </div>
 
@@ -307,7 +378,7 @@ export default function Invoices() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {invoices.map((invoice) => (
+            {filteredInvoices.map((invoice) => (
               <tr key={invoice.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   #{invoice.invoiceNumber || '-'}
@@ -347,21 +418,29 @@ export default function Invoices() {
             ))}
           </tbody>
         </table>
-        {invoices.length === 0 && !loading && (
+        {filteredInvoices.length === 0 && !loading && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No invoices found</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new invoice.</p>
-            <div className="mt-6">
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                + Create Invoice
-              </button>
-            </div>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              {invoices.length === 0 ? 'No invoices found' : `No ${statusFilter} invoices found`}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {invoices.length === 0
+                ? 'Get started by creating a new invoice.'
+                : `Try changing the filter to see other invoices.`}
+            </p>
+            {invoices.length === 0 && (
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  + Create Invoice
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
