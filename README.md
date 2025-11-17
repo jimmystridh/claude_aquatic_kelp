@@ -56,6 +56,7 @@ This project consists of two main parts:
 - 🎨 **Modern UI** - Clean interface with Tailwind CSS, shadows, and smooth transitions
 - 📊 **CSV Export** - Export all data (customers, articles, suppliers, invoices) to CSV files
 - 🔍 **Invoice Filtering** - Filter invoices by status (All, Paid, Unpaid) with live counts
+- ☑️ **Bulk Selection** - Select multiple items with checkboxes for batch operations (delete/export)
 
 ## Getting Started
 
@@ -121,6 +122,10 @@ The dashboard provides tabs for managing different resources:
 - View all customers with pagination (10 per page)
 - **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by name, email, phone, city, or country
+- **Bulk selection** - Select multiple customers with checkboxes for batch operations
+  - **Bulk delete** - Delete multiple customers at once with confirmation
+  - **Bulk export** - Export only selected customers to CSV
+  - Select all/deselect all with header checkbox (with indeterminate state)
 - **Edit existing customers** - Click Edit to modify customer details
 - Create new customers with validation
 - Delete existing customers with confirmation
@@ -135,6 +140,10 @@ The dashboard provides tabs for managing different resources:
 - Browse all products/services with pagination
 - **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by article number, name, description, unit price, or unit
+- **Bulk selection** - Select multiple articles with checkboxes for batch operations
+  - **Bulk delete** - Delete multiple articles at once with confirmation
+  - **Bulk export** - Export only selected articles to CSV
+  - Select all/deselect all with header checkbox (with indeterminate state)
 - **Edit existing articles** - Click Edit to modify article details
 - Create new articles with descriptions, prices, and units
 - Delete articles with confirmation
@@ -147,6 +156,9 @@ The dashboard provides tabs for managing different resources:
 - View all customer invoices with pagination
 - **Filter by status** - Show All, Paid, or Unpaid invoices with live counts
 - **Sort by any column** - Click column headers to sort by invoice number, customer, dates, total amount, or status
+- **Bulk selection** - Select multiple invoices with checkboxes for batch operations
+  - **Bulk export** - Export only selected invoices to CSV
+  - Select all/deselect all with header checkbox (with indeterminate state)
 - **Print invoices** - Professional print layout for any invoice
 - Create invoices by selecting customers and articles
 - Auto-fill line item details from selected article
@@ -164,6 +176,10 @@ The dashboard provides tabs for managing different resources:
 - View all suppliers with pagination
 - **Debounced search** - Real-time search with visual indicator while typing
 - **Sort by any column** - Click column headers to sort by name, email, phone, city, or country code
+- **Bulk selection** - Select multiple suppliers with checkboxes for batch operations
+  - **Bulk delete** - Delete multiple suppliers at once with confirmation
+  - **Bulk export** - Export only selected suppliers to CSV
+  - Select all/deselect all with header checkbox (with indeterminate state)
 - **Edit existing suppliers** - Click Edit to modify supplier details
 - Create new suppliers with contact information
 - Delete suppliers with confirmation
@@ -269,6 +285,9 @@ claude_aquatic_kelp/
 ├── lib/
 │   ├── visma.ts                   # Client initialization
 │   ├── useSort.tsx                # Table sorting hook
+│   ├── useBulkSelection.tsx       # Bulk selection hook
+│   ├── useDebounce.tsx            # Debounce hook
+│   ├── useKeyboardShortcuts.tsx   # Keyboard shortcuts hook
 │   └── csvExport.ts               # CSV export utility
 └── package.json
 ```
@@ -418,6 +437,65 @@ Features:
 - Prevents conflicts when typing in inputs
 - Easy to add custom shortcuts
 - Includes help component for displaying available shortcuts
+
+### Bulk Selection (`useBulkSelection` hook)
+Multi-select functionality for batch operations:
+
+```typescript
+import { useBulkSelection } from '@/lib/useBulkSelection';
+
+const {
+  selectedCount,
+  isSelected,
+  isAllSelected,
+  isSomeSelected,
+  toggleItem,
+  toggleAll,
+  clearSelection,
+  getSelectedItems
+} = useBulkSelection(items);
+
+// In table header - "Select All" checkbox
+<input
+  type="checkbox"
+  checked={isAllSelected}
+  ref={(el) => {
+    if (el) {
+      el.indeterminate = isSomeSelected;
+    }
+  }}
+  onChange={toggleAll}
+/>
+
+// In table row - Individual checkbox
+<input
+  type="checkbox"
+  checked={isSelected(item)}
+  onChange={() => toggleItem(item)}
+/>
+
+// Bulk actions toolbar
+{selectedCount > 0 && (
+  <div>
+    {selectedCount} item{selectedCount > 1 ? 's' : ''} selected
+    <button onClick={() => handleBulkExport(getSelectedItems())}>
+      Export Selected
+    </button>
+    <button onClick={() => handleBulkDelete(getSelectedItems())}>
+      Delete Selected
+    </button>
+    <button onClick={clearSelection}>Clear</button>
+  </div>
+)}
+```
+
+Features:
+- Type-safe with TypeScript generics
+- Indeterminate checkbox state for partial selection
+- Efficient Set-based selection tracking
+- Works with any data structure (uses configurable ID key)
+- All components (Customers, Articles, Suppliers, Invoices) support bulk operations
+- Bulk delete and bulk export functionality
 
 ### Print Invoice (`PrintInvoice` component)
 Professional print-friendly invoice layout:

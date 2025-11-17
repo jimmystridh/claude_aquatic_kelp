@@ -11,6 +11,7 @@ import { useSort, SortIcon } from '@/lib/useSort';
 import { useDebounce } from '@/lib/useDebounce';
 import StatCard from './StatCard';
 import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
+import { useBulkSelection } from '@/lib/useBulkSelection';
 
 export default function Articles() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -27,6 +28,18 @@ export default function Articles() {
   const toast = useToast();
   const { sortedData: sortedArticles, sortKey, sortDirection, handleSort } = useSort(articles, 'name');
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Bulk selection
+  const {
+    selectedCount,
+    isSelected,
+    isAllSelected,
+    isSomeSelected,
+    toggleItem,
+    toggleAll,
+    clearSelection,
+    getSelectedItems
+  } = useBulkSelection(sortedArticles);
 
   // Debounce search query to reduce API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -182,6 +195,58 @@ export default function Articles() {
     toast.success('Articles exported to CSV');
   };
 
+  const handleBulkDelete = async () => {
+    const selectedItems = getSelectedItems();
+    if (selectedItems.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to delete ${selectedItems.length} article${selectedItems.length > 1 ? 's' : ''}?`;
+    if (!confirm(confirmMessage)) return;
+
+    toast.info(`Deleting ${selectedItems.length} article${selectedItems.length > 1 ? 's' : ''}...`);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const article of selectedItems) {
+      if (article.id) {
+        const result = await deleteArticle(article.id);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    clearSelection();
+    loadArticles(currentPage, searchQuery);
+
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} article${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} article${failCount > 1 ? 's' : ''}`);
+    }
+  };
+
+  const handleBulkExport = () => {
+    const selectedItems = getSelectedItems();
+    if (selectedItems.length === 0) return;
+
+    exportToCSV(
+      selectedItems,
+      'articles-selected',
+      [
+        { key: 'name', header: 'Name' },
+        { key: 'articleNumber', header: 'Article Number' },
+        { key: 'description', header: 'Description' },
+        { key: 'unitPrice', header: 'Unit Price' },
+        { key: 'unit', header: 'Unit' },
+      ]
+    );
+    toast.success(`Exported ${selectedItems.length} article${selectedItems.length > 1 ? 's' : ''} to CSV`);
+  };
+
   // Calculate average unit price
   const averagePrice = useMemo(() => {
     if (articles.length === 0) return 0;
@@ -311,6 +376,50 @@ export default function Articles() {
         )}
       </form>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedCount > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-indigo-900">
+              {selectedCount} article{selectedCount > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkExport}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                title="Export selected articles to CSV"
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export
+                </div>
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                title="Delete selected articles"
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete
+                </div>
+              </button>
+              <button
+                onClick={clearSelection}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                title="Clear selection"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={handleSubmit} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
           <h3 className="text-lg font-semibold mb-4">
@@ -398,6 +507,20 @@ export default function Articles() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 w-12">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = isSomeSelected;
+                    }
+                  }}
+                  onChange={toggleAll}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  title={isAllSelected ? 'Deselect all' : 'Select all'}
+                />
+              </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('articleNumber')}
@@ -449,6 +572,15 @@ export default function Articles() {
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedArticles.map((article) => (
               <tr key={article.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(article)}
+                    onChange={() => toggleItem(article)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{article.articleNumber || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{article.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{article.description || '-'}</td>

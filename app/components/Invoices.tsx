@@ -14,6 +14,7 @@ import { exportToCSV } from '@/lib/csvExport';
 import { useSort, SortIcon } from '@/lib/useSort';
 import StatCard from './StatCard';
 import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
+import { useBulkSelection } from '@/lib/useBulkSelection';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
@@ -42,6 +43,18 @@ export default function Invoices() {
 
   // Apply sorting to filtered invoices
   const { sortedData: sortedInvoices, sortKey, sortDirection, handleSort } = useSort(filteredInvoices, 'customerName');
+
+  // Bulk selection
+  const {
+    selectedCount,
+    isSelected,
+    isAllSelected,
+    isSomeSelected,
+    toggleItem,
+    toggleAll,
+    clearSelection,
+    getSelectedItems
+  } = useBulkSelection(sortedInvoices);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -221,6 +234,25 @@ export default function Invoices() {
     toast.success('Invoices exported to CSV');
   };
 
+  const handleBulkExport = () => {
+    const selectedItems = getSelectedItems();
+    if (selectedItems.length === 0) return;
+
+    exportToCSV(
+      selectedItems,
+      'invoices-selected',
+      [
+        { key: 'invoiceNumber', header: 'Invoice #' },
+        { key: 'customerName', header: 'Customer' },
+        { key: 'invoiceDate', header: 'Invoice Date' },
+        { key: 'dueDate', header: 'Due Date' },
+        { key: 'totalAmount', header: 'Total Amount' },
+        { key: 'isPaid', header: 'Paid' },
+      ]
+    );
+    toast.success(`Exported ${selectedItems.length} invoice${selectedItems.length > 1 ? 's' : ''} to CSV`);
+  };
+
   const handleViewInvoice = (invoice: CustomerInvoice) => {
     setSelectedInvoice(invoice);
   };
@@ -368,6 +400,38 @@ export default function Invoices() {
         </button>
       </div>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedCount > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-indigo-900">
+              {selectedCount} invoice{selectedCount > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkExport}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                title="Export selected invoices to CSV"
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export
+                </div>
+              </button>
+              <button
+                onClick={clearSelection}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                title="Clear selection"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={handleCreateInvoice} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
           <h3 className="text-lg font-semibold mb-4">Create New Invoice</h3>
@@ -482,6 +546,20 @@ export default function Invoices() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 w-12">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = isSomeSelected;
+                    }
+                  }}
+                  onChange={toggleAll}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  title={isAllSelected ? 'Deselect all' : 'Select all'}
+                />
+              </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('invoiceNumber')}
@@ -542,6 +620,15 @@ export default function Invoices() {
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedInvoices.map((invoice) => (
               <tr key={invoice.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(invoice)}
+                    onChange={() => toggleItem(invoice)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   #{invoice.invoiceNumber || '-'}
                 </td>
