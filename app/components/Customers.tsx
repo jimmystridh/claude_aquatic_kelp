@@ -1,161 +1,265 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getCustomers, createCustomer, deleteCustomer } from '@/app/actions/customers';
+import { useState, useEffect, useMemo } from 'react';
+import { getCustomers, createCustomer, deleteCustomer, searchCustomers } from '@/app/actions/customers';
 import type { Customer } from '@visma-eaccounting/client';
+import { useToast } from './useToast';
+import Pagination from './Pagination';
+import LoadingSkeleton from './LoadingSkeleton';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
 
-  const loadCustomers = async () => {
+  const toast = useToast();
+
+  const loadCustomers = async (page = 1, query = '') => {
     setLoading(true);
-    setError(null);
-    const result = await getCustomers();
+    const result = query
+      ? await searchCustomers(query, page, pageSize)
+      : await getCustomers(page, pageSize);
+
     if (result.success && result.data) {
       setCustomers(result.data.data);
+      setTotalPages(result.data.meta.totalPages);
+      setTotalCount(result.data.meta.totalCount);
+      setCurrentPage(result.data.meta.currentPage);
     } else {
-      setError(result.error || 'Failed to load customers');
+      toast.error(result.error || 'Failed to load customers');
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    loadCustomers(currentPage, searchQuery);
+  }, [currentPage]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    loadCustomers(1, searchQuery);
+  };
 
   const handleCreateCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
     const formData = new FormData(e.currentTarget);
 
-    const result = await createCustomer({
+    const data = {
       name: formData.get('name') as string,
       emailAddress: formData.get('email') as string,
       phoneNumber: formData.get('phone') as string,
       invoiceCity: formData.get('city') as string,
-      invoiceCountryCode: formData.get('country') as string,
-    });
+      invoiceCountryCode: (formData.get('country') as string).toUpperCase(),
+    };
+
+    // Basic validation
+    if (!data.name.trim()) {
+      toast.error('Customer name is required');
+      setSubmitting(false);
+      return;
+    }
+
+    if (data.invoiceCountryCode && data.invoiceCountryCode.length !== 2) {
+      toast.error('Country code must be 2 letters (e.g., SE, NO, DK)');
+      setSubmitting(false);
+      return;
+    }
+
+    const result = await createCustomer(data);
 
     if (result.success) {
       setShowForm(false);
-      loadCustomers();
+      toast.success('Customer created successfully!');
+      e.currentTarget.reset();
+      loadCustomers(currentPage, searchQuery);
     } else {
-      alert(result.error);
+      toast.error(result.error || 'Failed to create customer');
     }
+    setSubmitting(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
     const result = await deleteCustomer(id);
     if (result.success) {
-      loadCustomers();
+      toast.success('Customer deleted successfully');
+      loadCustomers(currentPage, searchQuery);
     } else {
-      alert(result.error);
+      toast.error(result.error || 'Failed to delete customer');
     }
   };
 
-  if (loading) {
-    return <div className="p-4">Loading customers...</div>;
+  const handleRefresh = () => {
+    toast.info('Refreshing customers...');
+    loadCustomers(currentPage, searchQuery);
+  };
+
+  if (loading && customers.length === 0) {
+    return <LoadingSkeleton />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Customers</h2>
+      <toast.ToastContainer />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">Customers</h2>
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            title="Refresh"
+          >
+            <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          {showForm ? 'Cancel' : 'Add Customer'}
+          {showForm ? 'Cancel' : '+ Add Customer'}
         </button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
-          {error}
-        </div>
-      )}
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search customers by name..."
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+        <button
+          type="submit"
+          className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          Search
+        </button>
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setCurrentPage(1);
+              loadCustomers(1, '');
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </form>
 
       {showForm && (
-        <form onSubmit={handleCreateCustomer} className="p-4 bg-gray-50 rounded space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input
-              type="text"
-              name="name"
-              required
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone</label>
-            <input
-              type="tel"
-              name="phone"
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleCreateCustomer} className="p-6 bg-gray-50 rounded-lg space-y-4 border border-gray-200">
+          <h3 className="text-lg font-semibold mb-4">Create New Customer</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">City</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Name <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                name="city"
-                className="w-full px-3 py-2 border rounded"
+                name="name"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Acme Corporation"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Country Code</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+              <input
+                type="email"
+                name="email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="contact@acme.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="+46 123 456 789"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">City</label>
+              <input
+                type="text"
+                name="city"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Stockholm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Country Code</label>
               <input
                 type="text"
                 name="country"
                 placeholder="SE"
-                className="w-full px-3 py-2 border rounded"
+                maxLength={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent uppercase"
               />
+              <p className="text-xs text-gray-500 mt-1">2-letter code (SE, NO, DK, etc.)</p>
             </div>
           </div>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Create Customer
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Creating...' : 'Create Customer'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
-          <thead className="bg-gray-100">
+      <div className="overflow-x-auto bg-white rounded-lg shadow">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-left">Email</th>
-              <th className="px-4 py-2 text-left">Phone</th>
-              <th className="px-4 py-2 text-left">City</th>
-              <th className="px-4 py-2 text-left">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-200">
             {customers.map((customer) => (
-              <tr key={customer.id} className="border-t">
-                <td className="px-4 py-2">{customer.name}</td>
-                <td className="px-4 py-2">{customer.emailAddress || '-'}</td>
-                <td className="px-4 py-2">{customer.phoneNumber || '-'}</td>
-                <td className="px-4 py-2">{customer.invoiceCity || '-'}</td>
-                <td className="px-4 py-2">
+              <tr key={customer.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.emailAddress || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.phoneNumber || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.invoiceCity || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.invoiceCountryCode || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
-                    onClick={() => customer.id && handleDelete(customer.id)}
-                    className="text-red-600 hover:text-red-800"
+                    onClick={() => customer.id && handleDelete(customer.id, customer.name)}
+                    className="text-red-600 hover:text-red-900"
                   >
                     Delete
                   </button>
@@ -164,10 +268,34 @@ export default function Customers() {
             ))}
           </tbody>
         </table>
-        {customers.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No customers found</div>
+        {customers.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No customers found</h3>
+            <p className="mt-1 text-sm text-gray-500">Get started by creating a new customer.</p>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                + Add Customer
+              </button>
+            </div>
+          </div>
         )}
       </div>
+
+      {customers.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 }
